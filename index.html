@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>spiral Dynamic LCA Explorer</title>
+    <title>Spiral Dynamic LCA Explorer</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <style>
         :root {
@@ -619,7 +619,7 @@
 
                 <div class="main-content">
                     <div class="header">
-                        <h1>spiral Dynamic LCA Explorer</h1>
+                        <h1>Spiral Dynamic LCA Explorer</h1>
                         <p>Interactive 3D State-Space Visualization for Multi-Cycle Plastic Recycling</p>
                     </div>
 
@@ -655,11 +655,11 @@
         <!-- Documentation Tab -->
         <div id="documentation-tab" class="tab-content">
             <div class="doc-container">
-                <h1 style="color: var(--color-accent); font-size: 2.5rem; margin-bottom: 2rem;">spiral Framework Documentation</h1>
+                <h1 style="color: var(--color-accent); font-size: 2.5rem; margin-bottom: 2rem;">Spiral Framework Documentation</h1>
 
                 <div class="doc-section">
                     <h2>Overview</h2>
-                    <p>The Circularity State-Space (spiral) framework is a dynamic Life Cycle Assessment (LCA) model for multi-cycle plastic recycling. It tracks material evolution through a 3-dimensional state space defined by environmental burden, economic cost, and material quality.</p>
+                    <p>The Circularity State-Space (Spiral) framework is a dynamic Life Cycle Assessment (LCA) model for multi-cycle plastic recycling. It tracks material evolution through a 3-dimensional state space defined by environmental burden, economic cost, and material quality.</p>
                 </div>
 
                 <div class="doc-section">
@@ -882,7 +882,7 @@
 
                 <div class="doc-section">
                     <h2>Stochastic Dynamics</h2>
-                    <p>Real recycling processes have uncertainty. The spiral model adds Gaussian noise to state transitions:</p>
+                    <p>Real recycling processes have uncertainty. The Spiral model adds Gaussian noise to state transitions:</p>
                     <div class="math-block">
                         s<sub>n+1</sub> = s<sub>n</sub> + c(s<sub>n</sub>, θ) + η<sub>n</sub><br>
                         <br>
@@ -1177,10 +1177,10 @@
         }
 
         // ═══════════════════════════════════════════════════════════
-        // spiral MODEL IMPLEMENTATION
+        // Spiral MODEL IMPLEMENTATION
         // ═══════════════════════════════════════════════════════════
 
-        class spiralModel {
+        class SpiralModel {
             constructor(polymerParams, technologies, operatingZone) {
                 this.polymer = polymerParams;
                 this.technologies = technologies;
@@ -1758,7 +1758,7 @@
             const noise = parseFloat(document.getElementById('noise').value);
             const stopOnExit = document.getElementById('stopOnExit').checked;
 
-            const model = new spiralModel(polymerParams, technologies, operatingZone);
+            const model = new SpiralModel(polymerParams, technologies, operatingZone);
 
             currentTrajectories = [];
             for (let i = 0; i < mcRuns; i++) {
