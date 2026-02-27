@@ -596,7 +596,7 @@
 
                         <div class="slider-group">
                             <label>
-                                <span>Max Energy (E_max)</span>
+                                <span>Max env (E_max)</span>
                                 <span class="slider-value" id="emaxValue">25.0</span>
                             </label>
                             <input type="range" id="emax" min="5" max="200" step="5" value="25">
@@ -763,9 +763,9 @@
                             </tr>
                             <tr>
                                 <td>E₀</td>
-                                <td>Use Energy</td>
+                                <td>Use </td>
                                 <td>1.5 – 3.0 kg CO₂eq/kg</td>
-                                <td>Energy footprint per use cycle (manufacturing, transport, disposal).</td>
+                                <td>env footprint per use cycle (manufacturing, transport, disposal).</td>
                             </tr>
                         </tbody>
                     </table>
@@ -786,7 +786,7 @@
                         <tbody>
                             <tr>
                                 <td>ε</td>
-                                <td>Energy Input</td>
+                                <td>env Input</td>
                                 <td>kg CO₂eq/kg</td>
                                 <td>Environmental burden added per recycling operation</td>
                             </tr>
@@ -816,9 +816,9 @@
                             </tr>
                             <tr>
                                 <td>ΔE<sub>use</sub></td>
-                                <td>Use Energy Adjustment</td>
+                                <td>Use env Adjustment</td>
                                 <td>kg CO₂eq/kg</td>
-                                <td>Change in subsequent use energy (negative for improved material)</td>
+                                <td>Change in subsequent use env (negative for improved material)</td>
                             </tr>
                         </tbody>
                     </table>
@@ -837,7 +837,7 @@
                     </div>
                     <p>This operation:</p>
                     <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
-                        <li>Increases environmental burden by E₀ (use phase energy)</li>
+                        <li>Increases environmental burden by E₀ (use phase env)</li>
                         <li>Does not change cost (no processing)</li>
                         <li>Decreases quality by d<sub>use</sub>, amplified by contamination</li>
                     </ul>
@@ -875,7 +875,7 @@
                     <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
                         <li><strong>High Quality (Q &gt; 0.7):</strong> Attempts <strong>Mechanical</strong> recycling first. This prevents unnecessary cost and environmental burden when the material is still in good condition.</li>
                         <li><strong>Medium Quality (0.4 &lt; Q ≤ 0.7):</strong> Upgrades to <strong>Solvent</strong> recycling. Mechanical recycling is no longer sufficient, so a moderate increase in cost/burden is accepted for better quality recovery.</li>
-                        <li><strong>Low Quality (Q ≤ 0.4):</strong> Resorts to <strong>Chemical</strong> recycling. Acts as a "last resort" to spike the quality back up, accepting significant energy and cost penalties.</li>
+                        <li><strong>Low Quality (Q ≤ 0.4):</strong> Resorts to <strong>Chemical</strong> recycling. Acts as a "last resort" to spike the quality back up, accepting significant env and cost penalties.</li>
                     </ul>
                     <p><em>Note: This is a "greedy" algorithm that makes the best immediate choice. It does not perform predictive mathematical optimization (like a Markov Decision Process) to find the absolute perfect sequence of technologies. If a preferred technology is unchecked in the sidebar, the model falls back to the next available option.</em></p>
                 </div>
@@ -932,7 +932,7 @@
                                 <small>Quality threshold for recycling viability [0-1]</small>
                             </div>
                             <div class="form-group">
-                                <label>Maximum Energy (E<sub>max</sub>)</label>
+                                <label>Maximum env (E<sub>max</sub>)</label>
                                 <input type="number" id="settings-emax" step="1" value="25.0">
                                 <small>Environmental burden limit [kg CO₂eq/kg]</small>
                             </div>
@@ -1083,7 +1083,7 @@
                                         </select>
                                     </div>
                                     <div class="form-group" style="margin-bottom: 0;">
-                                        <label>ε (Energy)</label>
+                                        <label>ε (env)</label>
                                         <input type="number" id="new-tech-epsilon" step="0.1" value="0.40">
                                     </div>
                                     <div class="form-group" style="margin-bottom: 0;">
