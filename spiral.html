@@ -1,0 +1,1981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSS Dynamic LCA Explorer</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <style>
+        :root {
+            --color-bg-primary: #0f172a;
+            --color-bg-secondary: #1e293b;
+            --color-bg-tertiary: #334155;
+            --color-text-primary: #f1f5f9;
+            --color-text-secondary: #cbd5e1;
+            --color-text-muted: #94a3b8;
+            --color-accent: #38bdf8;
+            --color-accent-hover: #0ea5e9;
+            --color-success: #10b981;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg-primary);
+            color: var(--color-text-primary);
+            line-height: 1.6;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            background: var(--color-bg-secondary);
+            border-bottom: 2px solid var(--color-bg-tertiary);
+            display: flex;
+            padding: 0 1.5rem;
+        }
+
+        .tab-button {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--color-text-muted);
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+        }
+
+        .tab-button:hover {
+            color: var(--color-text-primary);
+        }
+
+        .tab-button.active {
+            color: var(--color-accent);
+            border-bottom-color: var(--color-accent);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        /* Simulation Tab Layout */
+        .container {
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            height: 100%;
+            overflow: hidden;
+            width: 100%;
+        }
+
+        .sidebar {
+            background: var(--color-bg-secondary);
+            border-right: 1px solid var(--color-bg-tertiary);
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1;
+            width: 100%;
+        }
+
+        .header {
+            background: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-bg-tertiary);
+            padding: 1rem 1.5rem;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--color-accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .header p {
+            font-size: 0.875rem;
+            color: var(--color-text-muted);
+        }
+
+        .viz-container {
+            flex: 1;
+            padding: 1.5rem;
+            overflow: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Documentation Tab */
+        .doc-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .doc-section {
+            margin-bottom: 3rem;
+        }
+
+        .doc-section h2 {
+            color: var(--color-accent);
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            border-bottom: 2px solid var(--color-bg-tertiary);
+            padding-bottom: 0.5rem;
+        }
+
+        .doc-section h3 {
+            color: var(--color-text-primary);
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .doc-section p {
+            margin-bottom: 1rem;
+            color: var(--color-text-secondary);
+        }
+
+        .math-block {
+            background: var(--color-bg-tertiary);
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+        }
+
+        .param-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            background: var(--color-bg-secondary);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .param-table th,
+        .param-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--color-bg-tertiary);
+        }
+
+        .param-table th {
+            background: var(--color-bg-tertiary);
+            color: var(--color-accent);
+            font-weight: 600;
+        }
+
+        .param-table td:first-child {
+            font-family: 'Courier New', monospace;
+            color: var(--color-warning);
+        }
+
+        .code-inline {
+            background: var(--color-bg-tertiary);
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-family: 'Courier New', monospace;
+            color: var(--color-warning);
+            font-size: 0.9em;
+        }
+
+        /* Settings Tab */
+        .settings-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: var(--color-bg-tertiary);
+            border-radius: 0.5rem;
+        }
+
+        .section-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--color-accent);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.375rem;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: var(--color-bg-primary);
+            border: 1px solid var(--color-bg-tertiary);
+            border-radius: 0.375rem;
+            color: var(--color-text-primary);
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--color-accent);
+        }
+
+        .form-group small {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--color-accent);
+            color: var(--color-bg-primary);
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: var(--color-accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--color-bg-tertiary);
+            color: var(--color-text-primary);
+            border: 1px solid var(--color-bg-tertiary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--color-bg-primary);
+        }
+
+        .btn-small {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.75rem;
+            width: auto;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .btn-success {
+            background: var(--color-success);
+            color: white;
+        }
+
+        .btn-error {
+            background: var(--color-error);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .stat-card {
+            background: var(--color-bg-primary);
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            border: 1px solid var(--color-bg-tertiary);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--color-text-primary);
+            margin-top: 0.25rem;
+        }
+
+        .stat-unit {
+            font-size: 0.75rem;
+            font-weight: 400;
+            color: var(--color-text-secondary);
+            margin-left: 0.25rem;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .checkbox-group label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+
+        #plot3d {
+            width: 100%;
+            flex: 1;
+            min-height: 500px;
+            border-radius: 0.5rem;
+            background: var(--color-bg-secondary);
+        }
+
+        .info-panel {
+            background: var(--color-bg-secondary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1rem;
+            flex-shrink: 0;
+        }
+
+        .slider-group {
+            margin-bottom: 1rem;
+        }
+
+        .slider-group label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            margin-bottom: 0.375rem;
+        }
+
+        .slider-value {
+            font-weight: 600;
+            color: var(--color-accent);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: var(--color-bg-primary);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--color-accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--color-accent);
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+        }
+
+        .item-list {
+            background: var(--color-bg-primary);
+            border-radius: 0.375rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .item-entry {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--color-bg-tertiary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-entry:last-child {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-weight: 600;
+            color: var(--color-text-primary);
+        }
+
+        .item-details {
+            font-size: 0.75rem;
+            color: var(--color-text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 0.375rem;
+            margin-bottom: 1rem;
+        }
+
+        .alert-info {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            color: var(--color-accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-button active" onclick="switchTab('simulation')">Simulation</button>
+            <button class="tab-button" onclick="switchTab('documentation')">Documentation</button>
+            <button class="tab-button" onclick="switchTab('settings')">Settings</button>
+        </div>
+
+        <!-- Simulation Tab -->
+        <div id="simulation-tab" class="tab-content active">
+            <div class="container">
+                <div class="sidebar">
+                    <h2 style="margin-bottom: 1.5rem; color: var(--color-accent); font-size: 1.25rem;">Simulation Controls</h2>
+
+                    <!-- Polymer Selection -->
+                    <div class="section">
+                        <div class="section-title">Polymer Type</div>
+                        <div class="form-group">
+                            <label>Material</label>
+                            <select id="polymerType"></select>
+                        </div>
+                    </div>
+
+                    <!-- Polymer Parameters -->
+                    <div class="section">
+                        <div class="section-title">Polymer Parameters</div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Quality Weight (α)</span>
+                                <span class="slider-value" id="alphaValue">0.60</span>
+                            </label>
+                            <input type="range" id="alpha" min="0.1" max="0.9" step="0.05" value="0.60">
+                            <small>Weight for molecular integrity in quality index</small>
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Degradation Rate (β)</span>
+                                <span class="slider-value" id="betaValue">0.12</span>
+                            </label>
+                            <input type="range" id="beta" min="0.05" max="0.30" step="0.01" value="0.12">
+                            <small>Chain scission rate [cycles⁻¹]</small>
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Base Degradation (d₀)</span>
+                                <span class="slider-value" id="d0Value">0.07</span>
+                            </label>
+                            <input type="range" id="d0" min="0.01" max="0.20" step="0.01" value="0.07">
+                            <small>Baseline quality loss per use cycle</small>
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Contamination Factor (γ)</span>
+                                <span class="slider-value" id="gammaValue">1.50</span>
+                            </label>
+                            <input type="range" id="gamma" min="1.0" max="3.0" step="0.1" value="1.50">
+                            <small>Impurity amplification exponent</small>
+                        </div>
+                    </div>
+
+                    <!-- Technology Selection -->
+                    <div class="section">
+                        <div class="section-title">Recycling Technologies</div>
+                        <div id="technologyCheckboxes"></div>
+                    </div>
+
+                    <!-- Simulation Settings -->
+                    <div class="section">
+                        <div class="section-title">Simulation Settings</div>
+
+                        <div class="form-group">
+                            <label>Number of Cycles</label>
+                            <input type="number" id="numCycles" min="5" max="100" value="15">
+                            <small>Lifecycle iterations to simulate</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Monte Carlo Runs</label>
+                            <input type="number" id="mcRuns" min="1" max="100" value="1">
+                            <small>Stochastic trajectories for uncertainty</small>
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Noise Level (σ)</span>
+                                <span class="slider-value" id="noiseValue">0.15</span>
+                            </label>
+                            <input type="range" id="noise" min="0.0" max="0.5" step="0.05" value="0.15">
+                            <small>Stochastic uncertainty magnitude</small>
+                        </div>
+
+                        <div class="checkbox-group" style="margin-top: 1rem;">
+                            <input type="checkbox" id="stopOnExit">
+                            <label for="stopOnExit">Stop Simulation on Zone Exit</label>
+                        </div>
+                    </div>
+
+                    <!-- Operating Zone -->
+                    <div class="section">
+                        <div class="section-title">Operating Zone Limits</div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Min Quality (Q_min)</span>
+                                <span class="slider-value" id="qminValue">0.35</span>
+                            </label>
+                            <input type="range" id="qmin" min="0.05" max="1.0" step="0.05" value="0.35">
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Max Energy (E_max)</span>
+                                <span class="slider-value" id="emaxValue">25.0</span>
+                            </label>
+                            <input type="range" id="emax" min="5" max="200" step="5" value="25">
+                            <small>kg CO₂eq/kg</small>
+                        </div>
+
+                        <div class="slider-group">
+                            <label>
+                                <span>Max Cost (C_max)</span>
+                                <span class="slider-value" id="cmaxValue">8.0</span>
+                            </label>
+                            <input type="range" id="cmax" min="0" max="100" step="1" value="8">
+                            <small>USD/kg</small>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="runSimulation">Run Simulation</button>
+                    <button class="btn btn-secondary" id="resetDefaults">Reset to Defaults</button>
+                </div>
+
+                <div class="main-content">
+                    <div class="header">
+                        <h1>CSS Dynamic LCA Explorer</h1>
+                        <p>Interactive 3D State-Space Visualization for Multi-Cycle Plastic Recycling</p>
+                    </div>
+
+                    <div class="viz-container">
+                        <div id="plot3d"></div>
+
+                        <div class="info-panel">
+                            <h3 style="margin-bottom: 1rem; color: var(--color-accent);">Simulation Results (First Trajectory)</h3>
+                            <div class="stats-grid">
+                                <div class="stat-card">
+                                    <div class="stat-label">Cycles Before Exit</div>
+                                    <div class="stat-value" id="statCycles">—</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Final Quality</div>
+                                    <div class="stat-value" id="statQuality">—</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Total Burden</div>
+                                    <div class="stat-value" id="statBurden">—<span class="stat-unit">kg CO₂eq</span></div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Net Cost</div>
+                                    <div class="stat-value" id="statCost">—<span class="stat-unit">USD</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Documentation Tab -->
+        <div id="documentation-tab" class="tab-content">
+            <div class="doc-container">
+                <h1 style="color: var(--color-accent); font-size: 2.5rem; margin-bottom: 2rem;">CSS Framework Documentation</h1>
+
+                <div class="doc-section">
+                    <h2>Overview</h2>
+                    <p>The Circularity State-Space (CSS) framework is a dynamic Life Cycle Assessment (LCA) model for multi-cycle plastic recycling. It tracks material evolution through a 3-dimensional state space defined by environmental burden, economic cost, and material quality.</p>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Simulation Options</h2>
+                    <p>The framework supports different simulation modes to observe lifecycle limits:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li><strong>Stop on Zone Exit:</strong> The simulation halts immediately when the material crosses out of the operating zone (Q &lt; Q<sub>min</sub>, E &gt; E<sub>max</sub>, or C &gt; C<sub>max</sub>). This is useful for determining the strict <em>recyclability half-life</em>.</li>
+                        <li><strong>Continuous Simulation:</strong> The simulation runs for the full user-specified number of cycles, even if the material drops out of the operating zone. Out-of-zone points are plotted in <span style="color: #ef4444; font-weight: bold;">red</span>. This allows observation of exactly how badly degraded or costly the material becomes if forced to continue cycling. Distinct marker shapes represent specific recycling technologies applied at each step.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section">
+                    <h2>State Space Definition</h2>
+                    <p>The system state is represented as a vector <span class="code-inline">s = (E, C, Q)</span> where:</p>
+
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Variable</th>
+                                <th>Name</th>
+                                <th>Units</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>E</td>
+                                <td>Environmental Burden</td>
+                                <td>kg CO₂eq/kg</td>
+                                <td>Cumulative environmental impact from all processing steps</td>
+                            </tr>
+                            <tr>
+                                <td>C</td>
+                                <td>Economic Cost</td>
+                                <td>USD/kg</td>
+                                <td>Cumulative net cost (positive) or profit (negative)</td>
+                            </tr>
+                            <tr>
+                                <td>Q</td>
+                                <td>Quality Index</td>
+                                <td>Dimensionless [0,1]</td>
+                                <td>Composite measure of material fitness for reuse</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <h3>Quality Index Composition</h3>
+                    <p>The quality index Q is computed from molecular integrity (μ) and compositional purity (π):</p>
+                    <div class="math-block">
+                        Q = μ<sup>α</sup> · π<sup>(1-α)</sup>
+                    </div>
+                    <p>Where:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li><strong>μ</strong> = M<sub>w</sub>(n) / M<sub>w</sub>(0) — molecular weight ratio (chain length preservation)</li>
+                        <li><strong>π</strong> — compositional purity (1 = pure, 0 = fully contaminated)</li>
+                        <li><strong>α</strong> — quality weight parameter balancing molecular vs compositional factors</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Polymer Parameters</h2>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Name</th>
+                                <th>Typical Range</th>
+                                <th>Physical Meaning</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>α</td>
+                                <td>Quality Weight</td>
+                                <td>0.5 – 0.7</td>
+                                <td>Relative importance of molecular integrity vs. purity in determining quality. Higher α = MW-dominated.</td>
+                            </tr>
+                            <tr>
+                                <td>β</td>
+                                <td>Chain Scission Rate</td>
+                                <td>0.05 – 0.20 cycles⁻¹</td>
+                                <td>Exponential degradation rate of molecular weight: μ(n) = exp(-β·n). Fit from GPC/SEC data.</td>
+                            </tr>
+                            <tr>
+                                <td>d₀</td>
+                                <td>Base Degradation</td>
+                                <td>0.05 – 0.15</td>
+                                <td>Quality loss per use cycle for pure material. Accounts for UV, thermal, mechanical stress.</td>
+                            </tr>
+                            <tr>
+                                <td>γ</td>
+                                <td>Contamination Factor</td>
+                                <td>1.2 – 2.5</td>
+                                <td>Amplification of degradation due to impurities: d<sub>use</sub> = d₀ · [1 + γ(1-π)]</td>
+                            </tr>
+                            <tr>
+                                <td>v₀</td>
+                                <td>Virgin Production Burden</td>
+                                <td>0.5 – 2.0 kg CO₂eq/kg</td>
+                                <td>Environmental impact of producing virgin polymer from feedstock.</td>
+                            </tr>
+                            <tr>
+                                <td>E₀</td>
+                                <td>Use Energy</td>
+                                <td>1.5 – 3.0 kg CO₂eq/kg</td>
+                                <td>Energy footprint per use cycle (manufacturing, transport, disposal).</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Recycling Technology Parameters</h2>
+                    <p>Each recycling technology θ is characterized by six parameters that define its effect on the state:</p>
+                    <table class="param-table">
+                        <thead>
+                            <tr>
+                                <th>Parameter</th>
+                                <th>Name</th>
+                                <th>Units</th>
+                                <th>Effect</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>ε</td>
+                                <td>Energy Input</td>
+                                <td>kg CO₂eq/kg</td>
+                                <td>Environmental burden added per recycling operation</td>
+                            </tr>
+                            <tr>
+                                <td>κ</td>
+                                <td>Processing Cost</td>
+                                <td>USD/kg</td>
+                                <td>Economic cost of the recycling process</td>
+                            </tr>
+                            <tr>
+                                <td>ρ<sub>max</sub></td>
+                                <td>Maximum Recovery Quality</td>
+                                <td>[0,1]</td>
+                                <td>Upper limit on quality this technology can achieve</td>
+                            </tr>
+                            <tr>
+                                <td>δ</td>
+                                <td>Recovery Efficiency</td>
+                                <td>[0,1]</td>
+                                <td>Fraction of quality gap closed: ΔQ = δ(ρ<sub>max</sub> - Q)</td>
+                            </tr>
+                            <tr>
+                                <td>φ</td>
+                                <td>Purification Efficiency</td>
+                                <td>[0,1]</td>
+                                <td>Fraction of purity gap closed: Δπ = φ(1 - π)</td>
+                            </tr>
+                            <tr>
+                                <td>ΔE<sub>use</sub></td>
+                                <td>Use Energy Adjustment</td>
+                                <td>kg CO₂eq/kg</td>
+                                <td>Change in subsequent use energy (negative for improved material)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Vector Field Operations</h2>
+
+                    <h3>Use Operation</h3>
+                    <p>Represents material degradation during application (e.g., one product lifetime):</p>
+                    <div class="math-block">
+                        s<sub>n+1</sub> = s<sub>n</sub> + c<sub>use</sub>(s<sub>n</sub>)<br>
+                        <br>
+                        where c<sub>use</sub> = (E₀, 0, -d<sub>use</sub>)<br>
+                        d<sub>use</sub> = d₀ · [1 + γ(1 - π)]
+                    </div>
+                    <p>This operation:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li>Increases environmental burden by E₀ (use phase energy)</li>
+                        <li>Does not change cost (no processing)</li>
+                        <li>Decreases quality by d<sub>use</sub>, amplified by contamination</li>
+                    </ul>
+
+                    <h3>Recycling Operation</h3>
+                    <p>Represents material processing with technology θ:</p>
+                    <div class="math-block">
+                        E<sub>n+1</sub> = E<sub>n</sub> + ε + ΔE<sub>use</sub><br>
+                        C<sub>n+1</sub> = C<sub>n</sub> + κ<br>
+                        Q<sub>n+1</sub> = Q<sub>n</sub> + δ(ρ<sub>max</sub> - Q<sub>n</sub>)<br>
+                        π<sub>n+1</sub> = π<sub>n</sub> + φ(1 - π<sub>n</sub>)
+                    </div>
+                    <p>This operation partially closes the gap to maximum achievable quality and purity.</p>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Operating Zone</h2>
+                    <p>The <strong>operating zone</strong> 𝒵 defines the region in (E, C, Q) space where recycling is feasible:</p>
+                    <div class="math-block">
+                        𝒵 = {s : Q ≥ Q<sub>min</sub>, E ≤ E<sub>max</sub>, C<sub>min</sub> ≤ C ≤ C<sub>max</sub>}
+                    </div>
+                    <p>Material exits the operating zone when:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li><strong>Q &lt; Q<sub>min</sub></strong> — Quality too low for reuse (material degraded)</li>
+                        <li><strong>E &gt; E<sub>max</sub></strong> — Environmental burden exceeds threshold (unsustainable)</li>
+                        <li><strong>C &gt; C<sub>max</sub></strong> — Cost exceeds profitability limit (economically unviable)</li>
+                    </ul>
+                    <p>The <strong>recyclability half-life</strong> τ<sub>1/2</sub> is the expected number of cycles before material exits the zone.</p>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Technology Selection Logic</h2>
+                    <p>The simulation employs a <strong>heuristic (rule-based) approach</strong> to select the recycling technology at the end of each use cycle. It evaluates the material's current quality (Q) and chooses the most appropriate active technology based on predefined thresholds. This mimics real-world waste management strategies where cheaper, lower-impact technologies are preferred until material degradation forces the use of more intensive recovery methods.</p>
+                    <p>The default cascading logic is as follows:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li><strong>High Quality (Q &gt; 0.7):</strong> Attempts <strong>Mechanical</strong> recycling first. This prevents unnecessary cost and environmental burden when the material is still in good condition.</li>
+                        <li><strong>Medium Quality (0.4 &lt; Q ≤ 0.7):</strong> Upgrades to <strong>Solvent</strong> recycling. Mechanical recycling is no longer sufficient, so a moderate increase in cost/burden is accepted for better quality recovery.</li>
+                        <li><strong>Low Quality (Q ≤ 0.4):</strong> Resorts to <strong>Chemical</strong> recycling. Acts as a "last resort" to spike the quality back up, accepting significant energy and cost penalties.</li>
+                    </ul>
+                    <p><em>Note: This is a "greedy" algorithm that makes the best immediate choice. It does not perform predictive mathematical optimization (like a Markov Decision Process) to find the absolute perfect sequence of technologies. If a preferred technology is unchecked in the sidebar, the model falls back to the next available option.</em></p>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Stochastic Dynamics</h2>
+                    <p>Real recycling processes have uncertainty. The CSS model adds Gaussian noise to state transitions:</p>
+                    <div class="math-block">
+                        s<sub>n+1</sub> = s<sub>n</sub> + c(s<sub>n</sub>, θ) + η<sub>n</sub><br>
+                        <br>
+                        where η<sub>n</sub> ~ 𝒩(0, Σ(s<sub>n</sub>))
+                    </div>
+                    <p>The covariance matrix Σ captures:</p>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li>Variability in feedstock quality (batch-to-batch differences)</li>
+                        <li>Process parameter fluctuations (temperature, residence time)</li>
+                        <li>Sorting errors and contamination uncertainty</li>
+                    </ul>
+                    <p>Monte Carlo simulation runs multiple trajectories to estimate distributions of outcomes.</p>
+                </div>
+
+                <div class="doc-section">
+                    <h2>Model Assumptions</h2>
+                    <ul style="margin-left: 2rem; color: var(--color-text-secondary);">
+                        <li><strong>Markovian dynamics</strong> — State transitions depend only on current state, not history</li>
+                        <li><strong>Exponential MW decay</strong> — Molecular weight follows first-order kinetics in cycle count</li>
+                        <li><strong>Additive burden and cost</strong> — E and C accumulate linearly across operations</li>
+                        <li><strong>Separable quality</strong> — Q factorizes into molecular (μ) and compositional (π) components</li>
+                        <li><strong>Gap-closing recovery</strong> — Technologies recover a fraction of the distance to their maximum</li>
+                        <li><strong>Gaussian noise</strong> — Stochastic fluctuations are normally distributed</li>
+                        <li><strong>Static technology parameters</strong> — ε, κ, δ, etc. are constant (learning curves not modeled)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settings-tab" class="tab-content">
+            <div class="settings-container">
+                <h1 style="color: var(--color-accent); font-size: 2rem; margin-bottom: 1.5rem;">Advanced Settings</h1>
+
+                <div class="alert alert-info">
+                    <strong>Note:</strong> Changes made here will be saved to your session and used in all simulations. Click "Save Settings" to apply changes.
+                </div>
+
+                <div class="settings-grid">
+                    <!-- Operating Zone Configuration -->
+                    <div class="section" style="grid-column: 1 / -1;">
+                        <div class="section-title">Operating Zone Limits</div>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+                            <div class="form-group">
+                                <label>Minimum Quality (Q<sub>min</sub>)</label>
+                                <input type="number" id="settings-qmin" step="0.05" value="0.35">
+                                <small>Quality threshold for recycling viability [0-1]</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Maximum Energy (E<sub>max</sub>)</label>
+                                <input type="number" id="settings-emax" step="1" value="25.0">
+                                <small>Environmental burden limit [kg CO₂eq/kg]</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Maximum Cost (C<sub>max</sub>)</label>
+                                <input type="number" id="settings-cmax" step="0.5" value="8.0">
+                                <small>Economic cost ceiling [USD/kg]</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Minimum Cost (C<sub>min</sub>)</label>
+                                <input type="number" id="settings-cmin" step="0.5" value="-5.0">
+                                <small>Economic profit floor [USD/kg]</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Simulation Configuration -->
+                    <div class="section">
+                        <div class="section-title">Simulation Defaults</div>
+                        <div class="form-group">
+                            <label>Default Cycles</label>
+                            <input type="number" id="settings-cycles" min="5" max="100" value="15">
+                            <small>Default number of lifecycle iterations</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Monte Carlo Runs</label>
+                            <input type="number" id="settings-mc" min="1" max="200" value="1">
+                            <small>Default stochastic trajectory count</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Default Noise Level</label>
+                            <input type="number" id="settings-noise" step="0.05" min="0" max="1" value="0.15">
+                            <small>Default stochastic uncertainty [0-1]</small>
+                        </div>
+                        <div class="checkbox-group" style="margin-top: 1rem;">
+                            <input type="checkbox" id="settings-stopOnExit">
+                            <label for="settings-stopOnExit">Default: Stop on Zone Exit</label>
+                        </div>
+                    </div>
+
+                    <!-- Polymer Parameter Ranges -->
+                    <div class="section">
+                        <div class="section-title">Polymer Parameter Ranges</div>
+                        <div class="form-group">
+                            <label>α Range (Min - Max)</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <input type="number" id="settings-alpha-min" step="0.05" value="0.1">
+                                <input type="number" id="settings-alpha-max" step="0.05" value="0.9">
+                            </div>
+                            <small>Quality weight parameter bounds</small>
+                        </div>
+                        <div class="form-group">
+                            <label>β Range (Min - Max)</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <input type="number" id="settings-beta-min" step="0.01" value="0.05">
+                                <input type="number" id="settings-beta-max" step="0.01" value="0.30">
+                            </div>
+                            <small>Degradation rate bounds [cycles⁻¹]</small>
+                        </div>
+                        <div class="form-group">
+                            <label>d₀ Range (Min - Max)</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <input type="number" id="settings-d0-min" step="0.01" value="0.01">
+                                <input type="number" id="settings-d0-max" step="0.01" value="0.20">
+                            </div>
+                            <small>Base degradation bounds</small>
+                        </div>
+                        <div class="form-group">
+                            <label>γ Range (Min - Max)</label>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+                                <input type="number" id="settings-gamma-min" step="0.1" value="1.0">
+                                <input type="number" id="settings-gamma-max" step="0.1" value="3.0">
+                            </div>
+                            <small>Contamination factor bounds</small>
+                        </div>
+                    </div>
+
+                    <!-- Custom Polymers -->
+                    <div class="section" style="grid-column: 1 / -1;">
+                        <div class="section-title">Custom Polymer Materials</div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>Polymer Name</label>
+                                        <input type="text" id="new-polymer-name" placeholder="e.g., PVC">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>α</label>
+                                        <input type="number" id="new-polymer-alpha" step="0.05" value="0.60">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>β</label>
+                                        <input type="number" id="new-polymer-beta" step="0.01" value="0.12">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>d₀</label>
+                                        <input type="number" id="new-polymer-d0" step="0.01" value="0.07">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>γ</label>
+                                        <input type="number" id="new-polymer-gamma" step="0.1" value="1.5">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>v₀ (kg CO₂eq/kg)</label>
+                                        <input type="number" id="new-polymer-v0" step="0.1" value="0.80">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>E₀ (kg CO₂eq/kg)</label>
+                                        <input type="number" id="new-polymer-E0" step="0.1" value="1.9">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success btn-small" id="addPolymer">Add Polymer</button>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--color-text-secondary);">Custom Polymers</label>
+                                <div class="item-list" id="customPolymerList" style="max-height: 200px;">
+                                    <div style="padding: 2rem; text-align: center; color: var(--color-text-muted); font-size: 0.875rem;">
+                                        No custom polymers added yet
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Custom Technologies -->
+                    <div class="section" style="grid-column: 1 / -1;">
+                        <div class="section-title">Recycling Technology Library</div>
+                        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                            <div>
+                                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 1rem;">
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>Technology Name</label>
+                                        <input type="text" id="new-tech-name" placeholder="e.g., Adv Sorting">
+                                        <input type="hidden" id="edit-tech-index" value="-1">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>Symbol / Icon</label>
+                                        <select id="new-tech-symbol" style="background: var(--color-bg-primary); border: 1px solid var(--color-bg-tertiary); color: white; padding: 0.5rem;">
+                                            <option value="square">Square (Solid)</option>
+                                            <option value="square-open">Square (Hollow)</option>
+                                            <option value="cross">Cross</option>
+                                            <option value="triangle-up">Triangle (Solid)</option>
+                                            <option value="triangle-up-open">Triangle (Hollow)</option>
+                                            <option value="star">Star</option>
+                                            <option value="hexagon">Hexagon</option>
+                                            <option value="diamond">Diamond</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>ε (Energy)</label>
+                                        <input type="number" id="new-tech-epsilon" step="0.1" value="0.40">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>κ (Cost)</label>
+                                        <input type="number" id="new-tech-kappa" step="0.1" value="0.25">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>ρ<sub>max</sub> (Max Quality)</label>
+                                        <input type="number" id="new-tech-rhomax" step="0.05" min="0" max="1" value="0.55">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>δ (Recovery Eff.)</label>
+                                        <input type="number" id="new-tech-delta" step="0.05" min="0" max="1" value="0.50">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>φ (Purification Eff.)</label>
+                                        <input type="number" id="new-tech-phi" step="0.05" min="0" max="1" value="0.30">
+                                    </div>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label>ΔE<sub>use</sub></label>
+                                        <input type="number" id="new-tech-deltaE" step="0.05" value="0.05">
+                                    </div>
+                                </div>
+                                <button class="btn btn-success btn-small" id="addTechnology" style="width: auto;">Add / Update Technology</button>
+                                <button class="btn btn-secondary btn-small" id="cancelEditTech" style="display:none; width: auto;">Cancel Edit</button>
+                            </div>
+                            <div>
+                                <label style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--color-text-secondary);">Available Technologies</label>
+                                <div class="item-list" id="technologyList" style="max-height: 200px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; text-align: center;">
+                    <button class="btn btn-primary" id="saveSettings" style="width: auto; padding: 1rem 3rem;">Save All Settings</button>
+                    <button class="btn btn-secondary" id="resetSettings" style="width: auto; padding: 1rem 3rem; margin-left: 1rem;">Reset to Factory Defaults</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ═══════════════════════════════════════════════════════════
+        // GLOBAL STATE AND CONFIGURATION
+        // ═══════════════════════════════════════════════════════════
+
+        let customPolymers = [];
+        let customTechnologies = [];
+        let currentSettings = {
+            operatingZone: {
+                Q_min: 0.35,
+                E_max: 25.0,
+                C_max: 8.0,
+                C_min: -5.0
+            },
+            simulationDefaults: {
+                cycles: 15,
+                mcRuns: 1,
+                noise: 0.15,
+                stopOnExit: false
+            },
+            parameterRanges: {
+                alpha: { min: 0.1, max: 0.9 },
+                beta: { min: 0.05, max: 0.30 },
+                d0: { min: 0.01, max: 0.20 },
+                gamma: { min: 1.0, max: 3.0 }
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════
+        // TAB SWITCHING
+        // ═══════════════════════════════════════════════════════════
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            document.getElementById(tabName + '-tab').classList.add('active');
+            event.target.classList.add('active');
+
+            if (tabName === 'simulation') {
+                setTimeout(() => {
+                    window.dispatchEvent(new Event('resize'));
+                }, 100);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // CSS MODEL IMPLEMENTATION
+        // ═══════════════════════════════════════════════════════════
+
+        class CSSModel {
+            constructor(polymerParams, technologies, operatingZone) {
+                this.polymer = polymerParams;
+                this.technologies = technologies;
+                this.zone = operatingZone;
+            }
+
+            calculateMu(cycles) {
+                const beta = this.polymer.beta;
+                return Math.exp(-beta * cycles);
+            }
+
+            calculateQuality(mu, pi) {
+                const alpha = this.polymer.alpha;
+                return Math.pow(mu, alpha) * Math.pow(pi, 1 - alpha);
+            }
+
+            useOperation(state, cycles = 1) {
+                const { E, C, Q } = state;
+                const mu_current = Math.pow(Q, 1 / this.polymer.alpha);
+                const mu_next = mu_current * Math.exp(-this.polymer.beta * cycles);
+
+                const d_use = this.polymer.d0 * (1 + this.polymer.gamma * (1 - state.pi));
+                const Q_next = Q - d_use * cycles;
+
+                const E_use = this.polymer.v0 + this.polymer.E0 * cycles;
+
+                return {
+                    E: E + E_use,
+                    C: C,
+                    Q: Math.max(0, Q_next),
+                    pi: state.pi,
+                    mu: mu_next
+                };
+            }
+
+            recycleOperation(state, tech) {
+                const { E, C, Q } = state;
+
+                const E_next = E + tech.epsilon;
+                const C_next = C + tech.kappa;
+
+                const delta_Q = tech.delta * (tech.rho_max - Q);
+                const Q_next = Q + delta_Q;
+
+                const delta_pi = tech.phi * (1 - state.pi);
+                const pi_next = Math.min(1.0, state.pi + delta_pi);
+
+                const E_final = E_next + tech.delta_E_use;
+
+                return {
+                    E: E_final,
+                    C: C_next,
+                    Q: Math.min(1.0, Math.max(0, Q_next)),
+                    pi: pi_next,
+                    mu: state.mu
+                };
+            }
+
+            inZone(state) {
+                return state.Q >= this.zone.Q_min &&
+                       state.E <= this.zone.E_max &&
+                       state.C <= this.zone.C_max &&
+                       state.C >= this.zone.C_min;
+            }
+
+            selectTechnology(state) {
+                if (!this.technologies || this.technologies.length === 0) return null;
+
+                const Q = state.Q;
+
+                if (Q > 0.7) {
+                    const mech = this.technologies.find(t => t.name === 'Mechanical');
+                    if (mech) return mech;
+                }
+
+                if (Q > 0.4) {
+                    const solv = this.technologies.find(t => t.name === 'Solvent');
+                    if (solv) return solv;
+                }
+
+                const chem = this.technologies.find(t => t.name === 'Chemical');
+                if (chem) return chem;
+
+                return this.technologies[0]; // fallback
+            }
+
+            runTrajectory(numCycles, noise = 0, stopOnExit = false) {
+                const trajectory = [];
+                let state = {
+                    E: 0,
+                    C: 0,
+                    Q: 1.0,
+                    pi: 1.0,
+                    mu: 1.0
+                };
+
+                let exitedZone = false;
+                let exitCycle = -1;
+
+                trajectory.push({...state, cycle: 0, phase: 'initial', inZone: true});
+
+                for (let i = 0; i < numCycles; i++) {
+                    state = this.useOperation(state);
+
+                    if (noise > 0) {
+                        state.Q += (Math.random() - 0.5) * noise;
+                        state.Q = Math.max(0, Math.min(1, state.Q));
+                    }
+
+                    const currentInZone = this.inZone(state);
+                    if (!currentInZone && !exitedZone) {
+                        exitedZone = true;
+                        exitCycle = i + 0.5;
+                    }
+
+                    trajectory.push({...state, cycle: i + 0.5, phase: 'use', inZone: currentInZone});
+
+                    if (stopOnExit && !currentInZone) {
+                        break;
+                    }
+
+                    const tech = this.selectTechnology(state);
+                    if (tech) {
+                        state = this.recycleOperation(state, tech);
+
+                        if (noise > 0) {
+                            state.Q += (Math.random() - 0.5) * noise;
+                            state.Q = Math.max(0, Math.min(1, state.Q));
+                        }
+
+                        const afterRecycleInZone = this.inZone(state);
+                        if (!afterRecycleInZone && !exitedZone) {
+                            exitedZone = true;
+                            exitCycle = i + 1;
+                        }
+
+                        trajectory.push({...state, cycle: i + 1, phase: 'recycle', tech: tech.name, inZone: afterRecycleInZone});
+                    }
+
+                    if (stopOnExit && !this.inZone(state)) {
+                        break;
+                    }
+                }
+
+                trajectory.exitedZone = exitedZone;
+                trajectory.exitCycle = exitCycle;
+
+                return trajectory;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // POLYMER AND TECHNOLOGY PRESETS
+        // ═══════════════════════════════════════════════════════════
+
+        const defaultPolymers = {
+            HDPE: { alpha: 0.60, beta: 0.12, d0: 0.07, gamma: 1.5, v0: 0.80, E0: 1.9 },
+            PET: { alpha: 0.65, beta: 0.15, d0: 0.09, gamma: 1.8, v0: 1.20, E0: 2.4 },
+            PP: { alpha: 0.58, beta: 0.10, d0: 0.06, gamma: 1.4, v0: 0.75, E0: 1.7 },
+            LDPE: { alpha: 0.55, beta: 0.14, d0: 0.08, gamma: 1.6, v0: 0.85, E0: 2.0 },
+            PS: { alpha: 0.62, beta: 0.18, d0: 0.11, gamma: 2.0, v0: 1.50, E0: 2.8 }
+        };
+
+        const defaultTechnologies = {
+            Mechanical: {
+                name: 'Mechanical',
+                symbol: 'square',
+                epsilon: 0.40,
+                kappa: 0.25,
+                rho_max: 0.55,
+                delta: 0.5,
+                phi: 0.3,
+                delta_E_use: 0.05
+            },
+            Chemical: {
+                name: 'Chemical',
+                symbol: 'triangle-up',
+                epsilon: 3.50,
+                kappa: 2.00,
+                rho_max: 0.95,
+                delta: 0.9,
+                phi: 0.85,
+                delta_E_use: -0.50
+            },
+            Solvent: {
+                name: 'Solvent',
+                symbol: 'cross',
+                epsilon: 1.20,
+                kappa: 0.80,
+                rho_max: 0.75,
+                delta: 0.7,
+                phi: 0.65,
+                delta_E_use: -0.15
+            }
+        };
+
+        customTechnologies = Object.values(defaultTechnologies);
+
+        // ═══════════════════════════════════════════════════════════
+        // UI INITIALIZATION AND UPDATES
+        // ═══════════════════════════════════════════════════════════
+
+        function updatePolymerDropdown() {
+            const select = document.getElementById('polymerType');
+            select.innerHTML = '';
+
+            Object.keys(defaultPolymers).forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+
+            customPolymers.forEach(polymer => {
+                const option = document.createElement('option');
+                option.value = polymer.name;
+                option.textContent = `${polymer.name} (Custom)`;
+                select.appendChild(option);
+            });
+        }
+
+        function updateTechnologyCheckboxes() {
+            const container = document.getElementById('technologyCheckboxes');
+            container.innerHTML = '';
+
+            customTechnologies.forEach(tech => {
+                const div = document.createElement('div');
+                div.className = 'checkbox-group';
+                div.innerHTML = `
+                    <input type="checkbox" id="tech${tech.name.replace(/\s+/g, '')}" checked>
+                    <label for="tech${tech.name.replace(/\s+/g, '')}">${tech.name}</label>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function updateTechnologyList() {
+            const list = document.getElementById('technologyList');
+            list.innerHTML = '';
+
+            customTechnologies.forEach((tech, idx) => {
+                const div = document.createElement('div');
+                div.className = 'item-entry';
+                div.innerHTML = `
+                    <div style="flex:1;">
+                        <div class="item-name">${tech.name} <span style="font-size:0.8em; color:var(--color-accent); font-weight:normal;">[${tech.symbol}]</span></div>
+                        <div class="item-details">ε=${tech.epsilon}, κ=${tech.kappa}, ρ<sub>max</sub>=${tech.rho_max}, δ=${tech.delta}</div>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary btn-small" onclick="editTechnology(${idx})">Edit</button>
+                        <button class="btn btn-error btn-small" onclick="removeTechnology(${idx})">Del</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function editTechnology(idx) {
+            const tech = customTechnologies[idx];
+            document.getElementById('edit-tech-index').value = idx;
+            document.getElementById('new-tech-name').value = tech.name;
+            document.getElementById('new-tech-symbol').value = tech.symbol || 'circle';
+            document.getElementById('new-tech-epsilon').value = tech.epsilon;
+            document.getElementById('new-tech-kappa').value = tech.kappa;
+            document.getElementById('new-tech-rhomax').value = tech.rho_max;
+            document.getElementById('new-tech-delta').value = tech.delta;
+            document.getElementById('new-tech-phi').value = tech.phi;
+            document.getElementById('new-tech-deltaE').value = tech.delta_E_use;
+
+            document.getElementById('addTechnology').textContent = 'Update Technology';
+            document.getElementById('cancelEditTech').style.display = 'inline-block';
+        }
+
+        document.getElementById('cancelEditTech').addEventListener('click', () => {
+            resetTechForm();
+        });
+
+        function resetTechForm() {
+            document.getElementById('edit-tech-index').value = '-1';
+            document.getElementById('new-tech-name').value = '';
+            document.getElementById('new-tech-symbol').value = 'square';
+            document.getElementById('addTechnology').textContent = 'Add / Update Technology';
+            document.getElementById('cancelEditTech').style.display = 'none';
+        }
+
+        function updateCustomPolymerList() {
+            const list = document.getElementById('customPolymerList');
+
+            if (customPolymers.length === 0) {
+                list.innerHTML = '<div style="padding: 2rem; text-align: center; color: var(--color-text-muted); font-size: 0.875rem;">No custom polymers added yet</div>';
+                return;
+            }
+
+            list.innerHTML = '';
+            customPolymers.forEach((polymer, idx) => {
+                const div = document.createElement('div');
+                div.className = 'item-entry';
+                div.innerHTML = `
+                    <div>
+                        <div class="item-name">${polymer.name}</div>
+                        <div class="item-details">α=${polymer.alpha}, β=${polymer.beta}, d₀=${polymer.d0}, γ=${polymer.gamma}</div>
+                    </div>
+                    <button class="btn btn-error btn-small" onclick="removePolymer(${idx})">Remove</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function setupSliders() {
+            const sliders = [
+                { id: 'alpha', display: 'alphaValue' },
+                { id: 'beta', display: 'betaValue' },
+                { id: 'd0', display: 'd0Value' },
+                { id: 'gamma', display: 'gammaValue' },
+                { id: 'noise', display: 'noiseValue' },
+                { id: 'qmin', display: 'qminValue' },
+                { id: 'emax', display: 'emaxValue' },
+                { id: 'cmax', display: 'cmaxValue' }
+            ];
+
+            sliders.forEach(({ id, display }) => {
+                const slider = document.getElementById(id);
+                const valueDisplay = document.getElementById(display);
+                slider.addEventListener('input', (e) => {
+                    valueDisplay.textContent = parseFloat(e.target.value).toFixed(2);
+                });
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // SETTINGS MANAGEMENT
+        // ═══════════════════════════════════════════════════════════
+
+        document.getElementById('addPolymer').addEventListener('click', () => {
+            const name = document.getElementById('new-polymer-name').value.trim();
+            if (!name) {
+                alert('Please enter a polymer name');
+                return;
+            }
+
+            const polymer = {
+                name: name,
+                alpha: parseFloat(document.getElementById('new-polymer-alpha').value),
+                beta: parseFloat(document.getElementById('new-polymer-beta').value),
+                d0: parseFloat(document.getElementById('new-polymer-d0').value),
+                gamma: parseFloat(document.getElementById('new-polymer-gamma').value),
+                v0: parseFloat(document.getElementById('new-polymer-v0').value),
+                E0: parseFloat(document.getElementById('new-polymer-E0').value)
+            };
+
+            customPolymers.push(polymer);
+            updateCustomPolymerList();
+            updatePolymerDropdown();
+
+            document.getElementById('new-polymer-name').value = '';
+        });
+
+        function removePolymer(idx) {
+            customPolymers.splice(idx, 1);
+            updateCustomPolymerList();
+            updatePolymerDropdown();
+        }
+
+        document.getElementById('addTechnology').addEventListener('click', () => {
+            const name = document.getElementById('new-tech-name').value.trim();
+            if (!name) {
+                alert('Please enter a technology name');
+                return;
+            }
+
+            const tech = {
+                name: name,
+                symbol: document.getElementById('new-tech-symbol').value,
+                epsilon: parseFloat(document.getElementById('new-tech-epsilon').value),
+                kappa: parseFloat(document.getElementById('new-tech-kappa').value),
+                rho_max: parseFloat(document.getElementById('new-tech-rhomax').value),
+                delta: parseFloat(document.getElementById('new-tech-delta').value),
+                phi: parseFloat(document.getElementById('new-tech-phi').value),
+                delta_E_use: parseFloat(document.getElementById('new-tech-deltaE').value)
+            };
+
+            const editIndex = parseInt(document.getElementById('edit-tech-index').value);
+
+            if (editIndex >= 0) {
+                customTechnologies[editIndex] = tech;
+            } else {
+                customTechnologies.push(tech);
+            }
+
+            updateTechnologyList();
+            updateTechnologyCheckboxes();
+            resetTechForm();
+
+            // Auto-run simulation to reflect new icons/parameters immediately
+            document.getElementById('runSimulation').click();
+        });
+
+        function removeTechnology(idx) {
+            customTechnologies.splice(idx, 1);
+            updateTechnologyList();
+            updateTechnologyCheckboxes();
+        }
+
+        document.getElementById('saveSettings').addEventListener('click', () => {
+            currentSettings.operatingZone = {
+                Q_min: parseFloat(document.getElementById('settings-qmin').value),
+                E_max: parseFloat(document.getElementById('settings-emax').value),
+                C_max: parseFloat(document.getElementById('settings-cmax').value),
+                C_min: parseFloat(document.getElementById('settings-cmin').value)
+            };
+
+            currentSettings.simulationDefaults = {
+                cycles: parseInt(document.getElementById('settings-cycles').value),
+                mcRuns: parseInt(document.getElementById('settings-mc').value),
+                noise: parseFloat(document.getElementById('settings-noise').value),
+                stopOnExit: document.getElementById('settings-stopOnExit').checked
+            };
+
+            currentSettings.parameterRanges = {
+                alpha: { min: parseFloat(document.getElementById('settings-alpha-min').value), max: parseFloat(document.getElementById('settings-alpha-max').value) },
+                beta: { min: parseFloat(document.getElementById('settings-beta-min').value), max: parseFloat(document.getElementById('settings-beta-max').value) },
+                d0: { min: parseFloat(document.getElementById('settings-d0-min').value), max: parseFloat(document.getElementById('settings-d0-max').value) },
+                gamma: { min: parseFloat(document.getElementById('settings-gamma-min').value), max: parseFloat(document.getElementById('settings-gamma-max').value) }
+            };
+
+            applySettingsToSimulation();
+            document.getElementById('runSimulation').click();
+            alert('Settings saved successfully!');
+        });
+
+        document.getElementById('resetSettings').addEventListener('click', () => {
+            if (!confirm('Reset all settings to factory defaults? This will clear custom polymers and technologies.')) return;
+
+            customPolymers = [];
+            customTechnologies = Object.values(defaultTechnologies);
+
+            currentSettings = {
+                operatingZone: { Q_min: 0.35, E_max: 25.0, C_max: 8.0, C_min: -5.0 },
+                simulationDefaults: { cycles: 15, mcRuns: 1, noise: 0.15, stopOnExit: false },
+                parameterRanges: {
+                    alpha: { min: 0.1, max: 0.9 },
+                    beta: { min: 0.05, max: 0.30 },
+                    d0: { min: 0.01, max: 0.20 },
+                    gamma: { min: 1.0, max: 3.0 }
+                }
+            };
+
+            loadSettingsToUI();
+            updatePolymerDropdown();
+            updateTechnologyCheckboxes();
+            updateTechnologyList();
+            updateCustomPolymerList();
+            applySettingsToSimulation();
+            alert('Settings reset to factory defaults');
+        });
+
+        function loadSettingsToUI() {
+            document.getElementById('settings-qmin').value = currentSettings.operatingZone.Q_min;
+            document.getElementById('settings-emax').value = currentSettings.operatingZone.E_max;
+            document.getElementById('settings-cmax').value = currentSettings.operatingZone.C_max;
+            document.getElementById('settings-cmin').value = currentSettings.operatingZone.C_min;
+
+            document.getElementById('settings-cycles').value = currentSettings.simulationDefaults.cycles;
+            document.getElementById('settings-mc').value = currentSettings.simulationDefaults.mcRuns;
+            document.getElementById('settings-noise').value = currentSettings.simulationDefaults.noise;
+            document.getElementById('settings-stopOnExit').checked = currentSettings.simulationDefaults.stopOnExit;
+
+            document.getElementById('settings-alpha-min').value = currentSettings.parameterRanges.alpha.min;
+            document.getElementById('settings-alpha-max').value = currentSettings.parameterRanges.alpha.max;
+            document.getElementById('settings-beta-min').value = currentSettings.parameterRanges.beta.min;
+            document.getElementById('settings-beta-max').value = currentSettings.parameterRanges.beta.max;
+            document.getElementById('settings-d0-min').value = currentSettings.parameterRanges.d0.min;
+            document.getElementById('settings-d0-max').value = currentSettings.parameterRanges.d0.max;
+            document.getElementById('settings-gamma-min').value = currentSettings.parameterRanges.gamma.min;
+            document.getElementById('settings-gamma-max').value = currentSettings.parameterRanges.gamma.max;
+        }
+
+        function applySettingsToSimulation() {
+            const qminSlider = document.getElementById('qmin');
+            qminSlider.value = currentSettings.operatingZone.Q_min;
+            document.getElementById('qminValue').textContent = currentSettings.operatingZone.Q_min.toFixed(2);
+
+            const emaxSlider = document.getElementById('emax');
+            emaxSlider.value = currentSettings.operatingZone.E_max;
+            document.getElementById('emaxValue').textContent = currentSettings.operatingZone.E_max.toFixed(1);
+
+            const cmaxSlider = document.getElementById('cmax');
+            cmaxSlider.value = currentSettings.operatingZone.C_max;
+            document.getElementById('cmaxValue').textContent = currentSettings.operatingZone.C_max.toFixed(1);
+
+            document.getElementById('numCycles').value = currentSettings.simulationDefaults.cycles;
+            document.getElementById('mcRuns').value = currentSettings.simulationDefaults.mcRuns;
+            document.getElementById('noise').value = currentSettings.simulationDefaults.noise;
+            document.getElementById('noiseValue').textContent = currentSettings.simulationDefaults.noise.toFixed(2);
+            document.getElementById('stopOnExit').checked = currentSettings.simulationDefaults.stopOnExit;
+
+            document.getElementById('alpha').min = currentSettings.parameterRanges.alpha.min;
+            document.getElementById('alpha').max = currentSettings.parameterRanges.alpha.max;
+            document.getElementById('beta').min = currentSettings.parameterRanges.beta.min;
+            document.getElementById('beta').max = currentSettings.parameterRanges.beta.max;
+            document.getElementById('d0').min = currentSettings.parameterRanges.d0.min;
+            document.getElementById('d0').max = currentSettings.parameterRanges.d0.max;
+            document.getElementById('gamma').min = currentSettings.parameterRanges.gamma.min;
+            document.getElementById('gamma').max = currentSettings.parameterRanges.gamma.max;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // SIMULATION CONTROLS
+        // ═══════════════════════════════════════════════════════════
+
+        let currentTrajectories = [];
+
+        document.getElementById('polymerType').addEventListener('change', (e) => {
+            const selectedName = e.target.value;
+            let preset = defaultPolymers[selectedName];
+
+            if (!preset) {
+                preset = customPolymers.find(p => p.name === selectedName);
+            }
+
+            if (preset) {
+                document.getElementById('alpha').value = preset.alpha;
+                document.getElementById('alphaValue').textContent = preset.alpha.toFixed(2);
+
+                document.getElementById('beta').value = preset.beta;
+                document.getElementById('betaValue').textContent = preset.beta.toFixed(2);
+
+                document.getElementById('d0').value = preset.d0;
+                document.getElementById('d0Value').textContent = preset.d0.toFixed(2);
+
+                document.getElementById('gamma').value = preset.gamma;
+                document.getElementById('gammaValue').textContent = preset.gamma.toFixed(2);
+            }
+        });
+
+        document.getElementById('resetDefaults').addEventListener('click', () => {
+            applySettingsToSimulation();
+            document.getElementById('polymerType').value = 'HDPE';
+            document.getElementById('polymerType').dispatchEvent(new Event('change'));
+        });
+
+        document.getElementById('runSimulation').addEventListener('click', () => {
+            const polymerName = document.getElementById('polymerType').value;
+            let polymerParams = defaultPolymers[polymerName];
+
+            if (!polymerParams) {
+                polymerParams = customPolymers.find(p => p.name === polymerName);
+            }
+
+            polymerParams = {
+                ...polymerParams,
+                alpha: parseFloat(document.getElementById('alpha').value),
+                beta: parseFloat(document.getElementById('beta').value),
+                d0: parseFloat(document.getElementById('d0').value),
+                gamma: parseFloat(document.getElementById('gamma').value)
+            };
+
+            const technologies = [];
+            customTechnologies.forEach(tech => {
+                const checkbox = document.getElementById('tech' + tech.name.replace(/\s+/g, ''));
+                if (checkbox && checkbox.checked) {
+                    technologies.push(tech);
+                }
+            });
+
+            const operatingZone = {
+                Q_min: parseFloat(document.getElementById('qmin').value),
+                E_max: parseFloat(document.getElementById('emax').value),
+                C_max: parseFloat(document.getElementById('cmax').value),
+                C_min: parseFloat(document.getElementById('settings-cmin').value)
+            };
+
+            const numCycles = parseInt(document.getElementById('numCycles').value);
+            const mcRuns = parseInt(document.getElementById('mcRuns').value);
+            const noise = parseFloat(document.getElementById('noise').value);
+            const stopOnExit = document.getElementById('stopOnExit').checked;
+
+            const model = new CSSModel(polymerParams, technologies, operatingZone);
+
+            currentTrajectories = [];
+            for (let i = 0; i < mcRuns; i++) {
+                const traj = model.runTrajectory(numCycles, noise, stopOnExit);
+                currentTrajectories.push(traj);
+            }
+
+            plotTrajectories(currentTrajectories, operatingZone);
+            updateStatistics(currentTrajectories[0]);
+        });
+
+        // ═══════════════════════════════════════════════════════════
+        // 3D VISUALIZATION
+        // ═══════════════════════════════════════════════════════════
+
+        function plotTrajectories(trajectories, zone) {
+            const traces = [];
+
+            const zoneTrace = {
+                type: 'scatter3d',
+                mode: 'lines',
+                x: [0, zone.E_max, zone.E_max, 0, 0, 0, zone.E_max, zone.E_max, 0, 0, 0, 0, zone.E_max, zone.E_max, zone.E_max, zone.E_max],
+                y: [zone.C_min, zone.C_min, zone.C_max, zone.C_max, zone.C_min, zone.C_min, zone.C_min, zone.C_max, zone.C_max, zone.C_min, zone.C_max, zone.C_max, zone.C_max, zone.C_min, zone.C_min, zone.C_max],
+                z: [zone.Q_min, zone.Q_min, zone.Q_min, zone.Q_min, zone.Q_min, 1, 1, 1, 1, 1, 1, zone.Q_min, zone.Q_min, zone.Q_min, 1, 1],
+                line: {
+                    color: 'rgba(148, 163, 184, 0.3)',
+                    width: 2
+                },
+                name: 'Operating Zone',
+                showlegend: true
+            };
+            traces.push(zoneTrace);
+
+            trajectories.forEach((traj, idx) => {
+                const E = traj.map(s => s.E);
+                const C = traj.map(s => s.C);
+                const Q = traj.map(s => s.Q);
+
+                // Color by zone status (Green if inside, Red if outside)
+                const colors = traj.map(s => s.inZone ? '#10b981' : '#ef4444');
+
+                // Symbols based on phase and technology
+                const symbols = traj.map(s => {
+                    if (s.phase === 'initial') return 'diamond';
+                    if (s.phase === 'use') return 'circle-open';
+
+                    const tech = customTechnologies.find(t => t.name === s.tech);
+                    if (tech && tech.symbol) {
+                        return tech.symbol;
+                    }
+                    return 'circle';
+                });
+
+                const hoverText = traj.map(s => {
+                    if (s.phase === 'recycle') return `Recycle (${s.tech}) [Cycle ${s.cycle.toFixed(1)}]`;
+                    if (s.phase === 'use') return `Use Phase [Cycle ${s.cycle.toFixed(1)}]`;
+                    return `Initial [Cycle 0]`;
+                });
+
+                const trace = {
+                    type: 'scatter3d',
+                    mode: 'lines+markers',
+                    x: E,
+                    y: C,
+                    z: Q,
+                    marker: {
+                        size: 6,
+                        symbol: symbols,
+                        color: colors,
+                        line: {
+                            color: 'rgba(255, 255, 255, 0.3)',
+                            width: 1
+                        }
+                    },
+                    line: {
+                        color: 'rgba(148, 163, 184, 0.4)',
+                        width: 2
+                    },
+                    name: idx === 0 ? 'Trajectories' : '',
+                    showlegend: false, // Hide individual trajectories from legend
+                    hovertemplate: '<b>%{text}</b><br>' +
+                                   '<b>E</b>: %{x:.2f} kg CO₂eq<br>' +
+                                   '<b>C</b>: %{y:.2f} USD<br>' +
+                                   '<b>Q</b>: %{z:.3f}<br>' +
+                                   '<extra></extra>',
+                    text: hoverText
+                };
+                traces.push(trace);
+            });
+
+            // Add legend entries for custom markers
+            customTechnologies.forEach((tech, idx) => {
+                const symbol = tech.symbol || 'circle';
+                traces.push({
+                    type: 'scatter3d',
+                    mode: 'markers',
+                    x: [null], y: [null], z: [null],
+                    marker: { size: 8, symbol: symbol, color: '#10b981' },
+                    name: `Recycle: ${tech.name}`,
+                    showlegend: true
+                });
+            });
+
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [null], y: [null], z: [null],
+                marker: { size: 8, symbol: 'circle-open', color: '#10b981' },
+                name: 'Phase: Use (Hollow)',
+                showlegend: true
+            });
+
+            traces.push({
+                type: 'scatter3d',
+                mode: 'markers',
+                x: [null], y: [null], z: [null],
+                marker: { size: 8, symbol: 'circle', color: '#ef4444' },
+                name: 'Status: Out of Zone (Red)',
+                showlegend: true
+            });
+
+            const layout = {
+                scene: {
+                    xaxis: {
+                        title: 'Environmental Burden E (kg CO₂eq/kg)',
+                        gridcolor: 'rgba(148, 163, 184, 0.2)',
+                        showbackground: true,
+                        backgroundcolor: 'rgba(15, 23, 42, 0.5)'
+                    },
+                    yaxis: {
+                        title: 'Economic Cost C (USD/kg)',
+                        gridcolor: 'rgba(148, 163, 184, 0.2)',
+                        showbackground: true,
+                        backgroundcolor: 'rgba(15, 23, 42, 0.5)'
+                    },
+                    zaxis: {
+                        title: 'Quality Index Q',
+                        gridcolor: 'rgba(148, 163, 184, 0.2)',
+                        showbackground: true,
+                        backgroundcolor: 'rgba(15, 23, 42, 0.5)',
+                        range: [0, 1.05]
+                    },
+                    camera: {
+                        eye: { x: 1.5, y: 1.5, z: 1.3 }
+                    }
+                },
+                paper_bgcolor: 'rgba(30, 41, 59, 1)',
+                plot_bgcolor: 'rgba(15, 23, 42, 1)',
+                font: {
+                    color: '#f1f5f9',
+                    family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                },
+                legend: {
+                    x: 0.02,
+                    y: 0.98,
+                    bgcolor: 'rgba(30, 41, 59, 0.8)',
+                    bordercolor: 'rgba(51, 65, 85, 1)',
+                    borderwidth: 1
+                },
+                margin: { l: 0, r: 0, t: 0, b: 0 }
+            };
+
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                displaylogo: false,
+                modeBarButtonsToRemove: ['toImage']
+            };
+
+            Plotly.newPlot('plot3d', traces, layout, config);
+        }
+
+        function updateStatistics(trajectory) {
+            const finalState = trajectory[trajectory.length - 1];
+
+            // If it exited the zone, show exactly when it exited
+            const numCycles = trajectory.exitedZone ? trajectory.exitCycle : finalState.cycle;
+
+            document.getElementById('statCycles').textContent = numCycles.toFixed(1);
+
+            if (trajectory.exitedZone) {
+                document.getElementById('statCycles').style.color = '#ef4444'; // Red if exited
+                document.querySelector('.info-panel h3').textContent = 'Simulation Results (First Trajectory) - Exited Zone!';
+                document.querySelector('.info-panel h3').style.color = '#ef4444';
+            } else {
+                document.getElementById('statCycles').style.color = 'var(--color-text-primary)';
+                document.querySelector('.info-panel h3').textContent = 'Simulation Results (First Trajectory) - Remained in Zone';
+                document.querySelector('.info-panel h3').style.color = 'var(--color-success)';
+            }
+
+            document.getElementById('statQuality').textContent = finalState.Q.toFixed(3);
+            document.getElementById('statBurden').textContent = finalState.E.toFixed(2);
+            document.getElementById('statCost').textContent = finalState.C.toFixed(2);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════
+
+        window.addEventListener('DOMContentLoaded', () => {
+            updatePolymerDropdown();
+            updateTechnologyCheckboxes();
+            updateTechnologyList();
+            updateCustomPolymerList();
+            loadSettingsToUI();
+            setupSliders();
+
+            document.getElementById('runSimulation').click();
+
+            // Handle window resize for plotly
+            window.addEventListener('resize', () => {
+                if (document.getElementById('simulation-tab').classList.contains('active')) {
+                    const plotElement = document.getElementById('plot3d');
+                    Plotly.Plots.resize(plotElement);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
